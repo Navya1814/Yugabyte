@@ -1,0 +1,8 @@
+---
+- name: Apply YugabyteDB setup
+  hosts: cloud
+  become: yes
+  vars_files:
+    - test-roles/vars/main.yml
+  roles:
+     - test-roles
