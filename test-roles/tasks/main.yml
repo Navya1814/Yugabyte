@@ -1,0 +1,105 @@
+# Step1: Set up NTP using chrony
+    - name: Install chrony package
+      package:
+        name: chrony
+        state: present
+
+    # Step2: Ensure chrony service is running and enabled
+    - name: Ensure chrony service is running
+      systemd:
+        name: chrony
+        state: started
+        enabled: yes
+      register: chrony_service
+
+    # Step3: Set ulimits for YugabyteDB in /etc/security/limits.conf
+    - name: Set system ulimits for YugabyteDB
+      lineinfile:
+        path: "/etc/security/limits.conf"
+        line: "{{ item }}"
+        create: yes
+      loop:
+        - "* soft nofile 1048576"  # Max open files
+        - "* hard nofile 1048576"  # Max open files
+        - "* soft nproc 12000"     # Max user processes
+        - "* hard nproc 12000"     # Max user processes
+        - "* soft stack 8192"      # Stack size (kbytes)
+        - "* hard stack 8192"      # Stack size (kbytes)
+        - "* soft memlock 64"      # Max locked memory (kbytes)
+        - "* hard memlock 64"      # Max locked memory (kbytes)
+        - "* soft cpu unlimited"   # CPU time limit (seconds)
+        - "* hard cpu unlimited"   # CPU time limit (seconds)
+        - "* soft fsize unlimited" # File size limit (blocks)
+        - "* hard fsize unlimited" # File size limit (blocks)
+        - "* soft data unlimited"  # Data segment size (kbytes)
+        - "* hard data unlimited"  # Data segment size (kbytes)
+        - "* soft rss unlimited"   # Max memory size (kbytes)
+        - "* hard rss unlimited"   # Max memory size (kbytes)
+        - "* soft vmem unlimited"  # Virtual memory size (kbytes)
+        - "* hard vmem unlimited"  # Virtual memory size (kbytes)
+        - "* soft msgqueue 819200" # POSIX message queues (bytes)
+        - "* hard msgqueue 819200" # POSIX message queues (bytes)
+        - "* soft locks unlimited" # File locks
+        - "* hard locks unlimited" # File locks
+        - "* soft core unlimited"  # Core file size (blocks)
+        - "* hard core unlimited"  # Core file size (blocks)
+        - "* soft sigpending 119934"  # Pending signals
+        - "* hard sigpending 119934"  # Pending signal
+      notify:
+        - Reload limits
+
+    # Step4: Configure kernel parameters (swappiness, core pattern, and max map count)
+    - name: Configure kernel parameters (swappiness, core pattern, and max map count)
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { key: "vm.swappiness", value: "0" }
+        - { key: "kernel.core_pattern", value: "/home/yugabyte/cores/core_%p_%t_%E" }
+        - { key: "vm.max_map_count", value: "262144" }
+      notify:
+        - Reload sysctl
+
+    # Step5: Ensure transparent hugepages are always enabled
+    - name: Ensure transparent hugepages are always enabled
+      lineinfile:
+        path: "{{ grub_config_file }}"
+        line: "{{ grub_line }}"
+        state: present
+        create: yes
+      notify:
+       - Rebuild GRUB configuration
+
+    # Step6: Create YugabyteDB systemd service file if it does not exist
+    - name: Check if yugabytedb service file exists
+      stat:
+        path: "{{ yugabyte_service_file }}"
+      register: yugabytedb_service_file
+
+    - name: Deploy yugabytedb systemd service
+      template:
+        src: yugabytedb.service.j2
+        dest: "{{ yugabyte_service_file }}"
+      when: not yugabytedb_service_file.stat.exists
+      notify: restart yugabytedb
+
+    # Step7: Change ownership of the directory recursively to ubuntu:ubuntu
+    - name: Ensure /home/ubuntu are accessible to the service user
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0755'
+      loop:
+        - /home
+        - /home/yugabyte
+   
+    - name: Change ownership of the directory recursively to ubuntu:ubuntu & Add write permission for the user
+      ansible.builtin.file:
+        path: "{{ yugabyte_home }}/openssl-config"
+        owner: ubuntu
+        mode: u+w
+        
+
+      
+

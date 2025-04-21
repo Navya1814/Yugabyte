@@ -1,0 +1,23 @@
+- name: Reload limits
+  command: sysctl -p
+
+- name: Reload sysctl
+  command: sysctl -p
+
+- name: Rebuild GRUB configuration
+  command: grub-mkconfig -o /boot/grub/grub.cfg
+  when: ansible_facts['os_family'] in ['Ubuntu', 'Debian'] or ansible_facts['os_family'] in ['RedHat', 'CentOS', 'Fedora'] 
+
+- name: restart yugabytedb
+  systemd:
+    name: yugabytedb
+    daemon_reload: true
+    enabled: true
+    state: restarted
+
+- name: Reboot system
+  reboot:
+    reboot_timeout: 600
+    test_command: uptime
+  when: ansible_facts['os_family'] in ['Ubuntu', 'Debian', 'RedHat', 'CentOS', 'Fedora']
+

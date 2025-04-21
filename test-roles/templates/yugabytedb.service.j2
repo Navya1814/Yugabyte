@@ -1,0 +1,37 @@
+[Unit]
+Description=YugabyteDB Service
+After=network.target
+
+[Service]
+Type=forking
+User={{ yugabyte_user | default('ubuntu') }}
+WorkingDirectory={{ yugabyte_home }}
+
+ExecStart= {{ yugabyte_bin }}/yugabyted start  --base_dir /home/ubuntu/var
+ExecStop= {{ yugabyte_bin }}/yugabyted stop
+ExecReload= {{ yugabyte_bin }}/yugabyted restart
+Restart=on-failure
+RestartSec=5
+
+# System resource limits
+LimitNOFILE=1048576
+LimitNPROC=12000
+LimitSTACK=8192
+LimitMEMLOCK=64
+LimitCPU=infinity
+LimitFSIZE=infinity
+LimitDATA=infinity
+LimitRSS=infinity
+#LimitVMEM=infinity
+LimitMSGQUEUE=819200
+LimitLOCKS=infinity
+LimitCORE=infinity
+LimitSIGPENDING=119934
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
