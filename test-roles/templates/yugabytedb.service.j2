@@ -4,12 +4,17 @@ After=network.target
 
 [Service]
 Type=forking
-User={{ yugabyte_user | default('ubuntu') }}
+User=yugabyte-user
 WorkingDirectory={{ yugabyte_home }}
 
-ExecStart= {{ yugabyte_bin }}/yugabyted start  --base_dir /home/ubuntu/var
-ExecStop= {{ yugabyte_bin }}/yugabyted stop
-ExecReload= {{ yugabyte_bin }}/yugabyted restart
+
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=LD_LIBRARY_PATH={{ yugabyte_home }}/lib
+# Start the YugabyteDB server
+ExecStart={{ yugabyte_bin }}/yugabyted start --base_dir=/home/yugabyte-user/var
+ExecStop={{ yugabyte_bin }}/yugabyted stop
+ExecReload={{ yugabyte_bin }}/yugabyted restart
+ExecStartPost=/bin/bash -c "echo '✅ YugabyteDB started via systemd.'"
 Restart=on-failure
 RestartSec=5
 

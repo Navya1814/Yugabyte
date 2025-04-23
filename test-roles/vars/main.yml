@@ -1,12 +1,14 @@
 ---
 # vars file for test-roles
-    yugabyte_version: "2024.2.2.1"
-    yugabyte_home: "/home/ubuntu/yugabyte-{{ yugabyte_version }}"
+    yugabyte_version: "2024.2.2.2"
+    yugabyte_user: "yugabyte-user"
+    yugabyte_home: "/home/{{yugabyte_user}}/yugabyte-{{ yugabyte_version }}"
     yugabyte_bin: "{{ yugabyte_home }}/bin"
     yugabyte_service_file: "/etc/systemd/system/yugabytedb.service"
-    yugabyte_post_install_script: "{{ yugabyte_bin }}/post_install.sh"
     yugabyte_exec_start: "/path/to/yugabytedb"
+    yugabyte_post_install_script: "{{ yugabyte_bin }}/post_install.sh"
     grub_config_file: "/etc/default/grub"
     grub_line: "GRUB_CMDLINE_LINUX=\"transparent_hugepage=always\""
+    
     
     
