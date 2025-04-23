@@ -81,7 +81,7 @@
         - /home
         - /home/yugabyte-user
 
-    - name: Change ownership of the directory recursively to ubuntu:ubuntu & Add write permission for the user
+    - name: Change ownership of the directory recursively and Add write permission for the user
       ansible.builtin.file:
         path: "{{ yugabyte_home }}/openssl-config"
         owner: yugabyte-user
@@ -94,6 +94,7 @@
         chdir: "{{ yugabyte_home }}"
 
     # Step8: Create YugabyteDB systemd service file if it does not exist
+    # Step 8: Create YugabyteDB systemd service file if it does not exist
     - name: Check if yugabytedb service file exists
       stat:
         path: "{{ yugabyte_service_file }}"
@@ -104,13 +105,14 @@
         src: yugabytedb.service.j2
         dest: "{{ yugabyte_service_file }}"
       when: not yugabytedb_service_file.stat.exists
-      notify: restart yugabytedb
+      notify: restart yugabytedb.service
 
     - name: Enable and start yugabytedb service
       systemd:
         name: yugabytedb.service
         enabled: yes
         state: started
+
 
     
    
