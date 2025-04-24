@@ -1,0 +1,141 @@
+    - name: Ensure required Yugabyte directories exist (recursively)
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ yugabyte_user }}"
+        group: "{{ yugabyte_user }}"
+        mode: '0755'
+        recurse: yes
+      loop:
+        - "{{ yugabyte_home }}"
+        - "{{ yugabyte_data_dir }}"
+        - "{{ yugabyte_home }}/openssl-config"
+
+    
+    # # Step1: Set up NTP using chrony
+    # - name: Install chrony package
+    #   package:
+    #     name: chrony
+    #     state: present
+
+    # # Step2: Ensure chrony service is running and enabled
+    # - name: Ensure chronyd service is running
+    #   systemd:
+    #     name: chronyd
+    #     state: started
+    #     enabled: yes
+    #   register: chronyd_service
+
+    # # Step3: Set ulimits for YugabyteDB in /etc/security/limits.conf
+    # - name: Set system ulimits for YugabyteDB
+    #   lineinfile:
+    #     path: "/etc/security/limits.conf"
+    #     line: "{{ item }}"
+    #     create: yes
+    #   loop:
+    #     - "{{yugabyte_user}} soft nofile 1048576"  # Max open files
+    #     - "{{yugabyte_user}} hard nofile 1048576"  # Max open files
+    #     - "{{yugabyte_user}} soft nproc 12000"     # Max user processes
+    #     - "{{yugabyte_user}} hard nproc 12000"     # Max user processes
+    #     - "{{yugabyte_user}} soft stack 8192"      # Stack size (kbytes)
+    #     - "{{yugabyte_user}} hard stack 8192"      # Stack size (kbytes)
+    #     - "{{yugabyte_user}} soft memlock 64"      # Max locked memory (kbytes)
+    #     - "{{yugabyte_user}} hard memlock 64"      # Max locked memory (kbytes)
+    #     - "{{yugabyte_user}} soft cpu unlimited"   # CPU time limit (seconds)
+    #     - "{{yugabyte_user}} hard cpu unlimited"   # CPU time limit (seconds)
+    #     - "{{yugabyte_user}} soft fsize unlimited" # File size limit (blocks)
+    #     - "{{yugabyte_user}} hard fsize unlimited" # File size limit (blocks)
+    #     - "{{yugabyte_user}} soft data unlimited"  # Data segment size (kbytes)
+    #     - "{{yugabyte_user}} hard data unlimited"  # Data segment size (kbytes)
+    #     - "{{yugabyte_user}} soft rss unlimited"   # Max memory size (kbytes)
+    #     - "{{yugabyte_user}} hard rss unlimited"   # Max memory size (kbytes)
+    #     - "{{yugabyte_user}} soft vmem unlimited"  # Virtual memory size (kbytes)
+    #     - "{{yugabyte_user}} hard vmem unlimited"  # Virtual memory size (kbytes)
+    #     - "{{yugabyte_user}} soft msgqueue 819200" # POSIX message queues (bytes)
+    #     - "{{yugabyte_user}} hard msgqueue 819200" # POSIX message queues (bytes)
+    #     - "{{yugabyte_user}} soft locks unlimited" # File locks
+    #     - "{{yugabyte_user}} hard locks unlimited" # File locks
+    #     - "{{yugabyte_user}} soft core unlimited"  # Core file size (blocks)
+    #     - "{{yugabyte_user}} hard core unlimited"  # Core file size (blocks)
+    #     - "{{yugabyte_user}} soft sigpending 119934"  # Pending signals
+    #     - "{{yugabyte_user}} hard sigpending 119934"  # Pending signal
+      
+
+    # Step4: Configure kernel parameters (swappiness, core pattern, and max map count)
+    - name: Configure kernel parameters (swappiness, core pattern, and max map count)
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { key: "vm.swappiness", value: "0" }
+        - { key: "kernel.core_pattern", value: "/home/yugabyte/cores/core_%p_%t_%E" }
+        - { key: "vm.max_map_count", value: "262144" }
+      notify:
+        - Reload limits
+      
+
+     # Step5: Ensure transparent hugepages are always enabled
+    - name: Ensure transparent hugepages are always enabled
+      lineinfile:
+        path: "{{ grub_config_file }}"
+        regexp: '^GRUB_CMDLINE_LINUX=".*"'
+        line: "{{ grub_line }}"
+        backrefs: yes
+      notify: Reboot Required
+
+    - name: Run post-installation script
+      command: "{{ yugabyte_post_install_script }}"
+      args:
+        chdir: "{{ yugabyte_home }}"
+
+     # Step8: Create YugabyteDB systemd service file if it does not exist
+    - name: Check if yugabytedb service file exists
+      stat:
+        path: "{{ yugabyte_service_file }}"
+      register: yugabytedb_service_file
+
+    - name: Deploy yugabytedb systemd service
+      template:
+        src: yugabyted.service.j2
+        dest: "{{ yugabyte_service_file }}"
+      when: not yugabytedb_service_file.stat.exists
+      become: true
+
+    - name: Restart yugabyted service
+      systemd:
+        name: yugabyted
+        state: restarted
+ 
+    - name: Enable yugabyted service
+      systemd:
+        name: yugabyted
+        enabled: true
+ 
+    - name: Start yugabyted service
+      systemd:
+        name: yugabyted
+        state: started
+
+    - name: Check yugabyted systemd status
+      command: systemctl status yugabyted
+      become_user: "{{yugabyte_user}}"
+      register: yugabyted_systemd_status
+      changed_when: false
+      failed_when: false
+
+    - name: Print yugabyted systemd status
+      debug:
+        var: yugabyted_systemd_status.stdout_lines
+
+    - name: Check yugabyted status via CLI
+      command: "{{ yugabyte_bin }}/yugabyted status"
+      become_user: "{{yugabyte_user}}"
+      register: yugabyte_status
+      changed_when: false
+      failed_when: false
+
+    - name: Print yugabyted CLI status
+      debug:
+        var: yugabyte_status.stdout

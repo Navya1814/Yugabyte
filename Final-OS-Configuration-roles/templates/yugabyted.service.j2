@@ -1,0 +1,31 @@
+[Unit]
+Description=YugabyteDB Cluster (yugabyted-managed)
+After=network-online.target
+ 
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=yugabyte-user
+Group=yugabyte-user
+WorkingDirectory=/home/yugabyte-user
+ 
+ExecStart=/usr/bin/python3 /home/yugabyte-user/yugabyte-2024.2.2.2/bin/yugabyted start
+ExecStop=/usr/bin/python3 /home/yugabyte-user/yugabyte-2024.2.2.2/bin/yugabyted stop
+ExecStartPost=/bin/bash -c "echo '✅ YugabyteDB started via systemd.'"
+
+LimitNOFILE=1048576
+LimitNPROC=12000
+LimitSTACK=8192
+LimitMEMLOCK=64
+LimitCPU=infinity
+LimitFSIZE=infinity
+LimitDATA=infinity
+LimitRSS=infinity
+LimitMSGQUEUE=819200
+LimitLOCKS=infinity
+LimitCORE=infinity
+LimitSIGPENDING=119934
+ 
+[Install]
+WantedBy=multi-user.target
+

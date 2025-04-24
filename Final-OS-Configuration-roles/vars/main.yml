@@ -1,0 +1,11 @@
+---
+# vars file for demo-role
+yugabyte_version: "2024.2.2.2"
+yugabyte_user: "yugabyte-user"
+yugabyte_home: "/home/{{yugabyte_user}}/yugabyte-{{ yugabyte_version }}"
+yugabyte_post_install_script: "{{ yugabyte_bin }}/post_install.sh"
+yugabyte_bin: "{{ yugabyte_home }}/bin"
+yugabyte_data_dir: /home/{{yugabyte_user}}/var
+yugabyte_service_file: "/etc/systemd/system/yugabyted.service"
+grub_config_file: "/etc/default/grub"
+grub_line: 'GRUB_CMDLINE_LINUX="transparent_hugepage=always"'

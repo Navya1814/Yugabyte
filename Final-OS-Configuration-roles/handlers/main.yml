@@ -1,0 +1,16 @@
+---
+# handlers file for demo-role
+    - name: Reload limits
+      command: sysctl -p
+
+    - name: Reload systemd
+      command: systemctl daemon-reexec && systemctl daemon-reload
+
+    - name: Reboot Required
+      command: grub2-mkconfig -o /boot/grub2/grub.cfg
+      notify: Reboot system
+
+    - name: Reboot system
+      reboot:
+        msg: "System rebooting to apply kernel and limits changes"
+        reboot_timeout: 300
